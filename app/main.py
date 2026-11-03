@@ -3,17 +3,17 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
- 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
- 
 from app.api.routers import usuarios
+from app.core.config import obter_configuracao
 from app.core.exceptions import (
     EmailJaCadastrado,
     ErroDeDominio,
     RecursoNaoEncontrado,
     RegraDeNegocioViolada,
+    NaoAutenticado,
 )
 from app.db.database import criar_tabelas
  
@@ -24,12 +24,19 @@ STATUS_POR_ERRO: tuple[tuple[type[ErroDeDominio], int], ...] = (
     (EmailJaCadastrado, 409),
     (RegraDeNegocioViolada, 422),
     (ErroDeDominio, 400),
+    (NaoAutenticado,401),
 )
- 
  
 @asynccontextmanager
 async def ciclo_de_vida(_app: FastAPI) -> AsyncIterator[None]:
-    """Prepara o banco na subida da aplicação: cria as tabelas que faltam."""
+    """Confere a configuração e prepara o banco na subida da aplicação.
+    
+    `segredo jwt()` e chamado aqui de proposito: sem JWT_SECRET, a API se
+    subir com uma mensagem explicando o que fazer - em vez de subir
+    e só falhar no primeiro login.
+"""
+
+    obter_configuracao().segredo_jwt()
     criar_tabelas()
     yield
  
@@ -37,7 +44,7 @@ async def ciclo_de_vida(_app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(
     title="Todo List API",
     description="Backend do ToDo List — curso Desenvolvedor Full Stack (SENAC).",
-    version="0.3.0",
+    version="0.4.0",
     lifespan=ciclo_de_vida,
 )
  
@@ -47,10 +54,6 @@ async def tratar_erro_de_dominio(
     _request: Request, excecao: ErroDeDominio
 ) -> JSONResponse:
     """Converte qualquer erro de domínio na resposta HTTP correspondente.
- 
-    Um único tratador atende a hierarquia inteira de exceções — é polimorfismo
-    aplicado ao tratamento de erro. As rotas não precisam conhecer códigos de
-    status de negócio e o domínio não precisa conhecer HTTP.
     """
     codigo = next(
         (codigo for tipo, codigo in STATUS_POR_ERRO if isinstance(excecao, tipo)), 400
@@ -90,7 +93,7 @@ def _mensagem_de_validacao(erro: dict[str, Any]) -> tuple[str, str]:
 async def tratar_erro_de_validacao(
     _request: Request, excecao: RequestValidationError
 ) -> JSONResponse:
-    """Traduz erros de validação do Pydantic em respostas HTTP 422."""
+    """Responde 422 com `detail` sempre em TEXTO, em português."""
     erros = [
         {"campo": campo, "mensagem": mensagem}
         for campo, mensagem in map(_mensagem_de_validacao, excecao.errors())
@@ -102,8 +105,6 @@ async def tratar_erro_de_validacao(
  
  
 app.include_router(usuarios.router)
- 
- 
 @app.get("/", tags=["Status"], summary="Verificar se a API está no ar")
 def raiz() -> dict[str, str]:
     """Confirma que a API está no ar e indica onde está a documentação."""

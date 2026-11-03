@@ -1,10 +1,19 @@
+# Versões fixadas: todas foram instaladas e testadas juntas. Sem versão fixa, uma
+# instalacão nova pode trazer uma versão maior de alguma biblioteca e quebrar o
+# projeto numa maquina e nao na outra.
+
+
+
 fastapi==0.141.1
 uvicorn[standard]==0.52.4
 sqlalchemy==2.0.52
-psycopg[binary]==3.3.6
+psycopg[binary]==3.3.6 # driver do PostgreSQL
 pydantic[email]==2.13.5
 python-dotenv==1.2.3
-bcrypt==5.0.0
+bcrypt==5.0.0      # hash de senha
+PyJWT==2.15.1      # tokens de autenticação 
 
+# Somente  para desenvolvimento e testes
 pytest==9.1.1
 httpx==0.28.1
+
