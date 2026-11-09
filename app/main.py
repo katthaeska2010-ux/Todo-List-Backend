@@ -6,7 +6,7 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from app.api.routers import usuarios
+from app.api.routers import tasks,usuarios
 from app.core.config import obter_configuracao
 from app.core.exceptions import (
     EmailJaCadastrado,
@@ -17,7 +17,7 @@ from app.core.exceptions import (
   
 )
 from app.db.database import criar_tabelas
- 
+ # Cada família de erro de domínio corresponde a um código HTTP. A ordem
 
 STATUS_POR_ERRO: tuple[tuple[type[ErroDeDominio], int], ...] = (
     (RecursoNaoEncontrado, 404),
@@ -31,10 +31,6 @@ STATUS_POR_ERRO: tuple[tuple[type[ErroDeDominio], int], ...] = (
 @asynccontextmanager
 async def ciclo_de_vida(_app: FastAPI) -> AsyncIterator[None]:
     """Confere a configuração e prepara o banco na subida da aplicação.
-    
-    `segredo jwt()` e chamado aqui de proposito: sem JWT_SECRET, a API se
-    subir com uma mensagem explicando o que fazer - em vez de subir
-    e só falhar no primeiro login.
 """
 
     obter_configuracao().segredo_jwt()
@@ -97,10 +93,6 @@ async def tratar_erro_de_validacao(
     _request: Request, excecao: RequestValidationError
 ) -> JSONResponse:
     """Responde 422 com `detail` sempre em TEXTO, em português.
-    
-    O padrao do FastAPI devolve `detail' como uma lista de objetos em ingles -
-    dificil de mostrar ao usuario. Aqui `detail' traz a primeira mensagem
-    pronta para exibir, e `erros' traz a lista completa, campo a campo.
     """
     erros = [
         {"campo": campo, "mensagem": mensagem}
@@ -114,6 +106,8 @@ async def tratar_erro_de_validacao(
  
  
 app.include_router(usuarios.router)
+app.include_router(tasks.router)
+
 @app.get("/", tags=["Status"], summary="Verificar se a API está no ar")
 def raiz() -> dict[str, str]:
     """Confirma que a API está no ar e indica onde está a documentação."""
