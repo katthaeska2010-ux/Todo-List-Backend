@@ -1,63 +1,60 @@
 """Ponto de entrada: cria o app, registra as rotas e traduz erros em HTTP."""
- 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from app.api.routers import tasks,usuarios
+from app.api.routers import tasks, usuarios
 from app.core.config import obter_configuracao
 from app.core.exceptions import (
+    AcessoNaoAutorizado,
     EmailJaCadastrado,
     ErroDeDominio,
     NaoAutenticado,
     RecursoNaoEncontrado,
     RegraDeNegocioViolada,
-  
 )
 from app.db.database import criar_tabelas
- # Cada família de erro de domínio corresponde a um código HTTP. A ordem
-
+# Cada família de erro de domínio corresponde a um código HTTP. A ordem
+# importa: vale o primeiro tipo que casar, do mais específico ao mais geral.
 STATUS_POR_ERRO: tuple[tuple[type[ErroDeDominio], int], ...] = (
     (RecursoNaoEncontrado, 404),
     (EmailJaCadastrado, 409),
-    (NaoAutenticado,401),
+    (NaoAutenticado, 401),
+    {AcessoNaoAutorizado, 403},
     (RegraDeNegocioViolada, 422),
     (ErroDeDominio, 400),
-    )
+)
  
  
 @asynccontextmanager
 async def ciclo_de_vida(_app: FastAPI) -> AsyncIterator[None]:
-    """Confere a configuração e prepara o banco na subida da aplicação.
-"""
-
+    """Confere a configuração e prepara o banco na subida da aplicação"""
     obter_configuracao().segredo_jwt()
     criar_tabelas()
     yield
- 
- 
 app = FastAPI(
     title="Todo List API",
     description="Backend do ToDo List — curso Desenvolvedor Full Stack (SENAC).",
-    version="0.7.0",
+    version="0.8.0",
     lifespan=ciclo_de_vida,
 )
- 
- 
 @app.exception_handler(ErroDeDominio)
 async def tratar_erro_de_dominio(
     _request: Request, excecao: ErroDeDominio
 ) -> JSONResponse:
-    """Converte qualquer erro de domínio na resposta HTTP correspondente.
-    """
+    """Converte qualquer erro de domínio na resposta HTTP correspondente."""
     codigo = next(
         (codigo for tipo, codigo in STATUS_POR_ERRO if isinstance(excecao, tipo)), 400
     )
+    # O padrão HTTP pede que toda resposta 401 diga COMO se autenticar
     cabecalhos = {"WWW-Authenticate": "Bearer"} if codigo == 401 else None
-    return JSONResponse(status_code=codigo, content={"detail": excecao.mensagem},headers=cabecalhos
+    return JSONResponse(
+        status_code=codigo, content={"detail": excecao.mensagem}, headers=cabecalhos
     )
+   
+ 
  
  
 def _mensagem_de_validacao(erro: dict[str, Any]) -> tuple[str, str]:
@@ -92,8 +89,7 @@ def _mensagem_de_validacao(erro: dict[str, Any]) -> tuple[str, str]:
 async def tratar_erro_de_validacao(
     _request: Request, excecao: RequestValidationError
 ) -> JSONResponse:
-    """Responde 422 com `detail` sempre em TEXTO, em português.
-    """
+    """Responde 422 com `detail` sempre em TEXTO, em português. """
     erros = [
         {"campo": campo, "mensagem": mensagem}
         for campo, mensagem in map(_mensagem_de_validacao, excecao.errors())
@@ -102,12 +98,11 @@ async def tratar_erro_de_validacao(
         status_code=422,
         content={"detail": erros[0]["mensagem"] if erros else "Dados inválidos.", "erros": erros},
     )
-
- 
  
 app.include_router(usuarios.router)
 app.include_router(tasks.router)
-
+ 
+ 
 @app.get("/", tags=["Status"], summary="Verificar se a API está no ar")
 def raiz() -> dict[str, str]:
     """Confirma que a API está no ar e indica onde está a documentação."""
