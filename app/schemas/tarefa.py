@@ -6,9 +6,7 @@ from pydantic import Field
  
 from app.models.enums import PrioridadeTarefa, StatusTarefa
 from app.schemas.base import DataHoraUTC, EsquemaDeEntrada, EsquemaDeSaida
- 
-# -------------------------------------------------- Tarefa
- 
+# ------------------------------------------------------------------ Tarefa
 class TarefaCreate(EsquemaDeEntrada):
     """Dados recebidos na criação de uma tarefa.
    
@@ -21,9 +19,10 @@ class TarefaCreate(EsquemaDeEntrada):
     prazo: date | None = None
  
 class TarefaUpdate(EsquemaDeSaida):
-    """Representação completa dae uma tarefa nas respostas da API."""
+    """Campos que podem ser alterados. Todos opcionais (atalização parcial)"""
  
     titulo: str | None = Field(default=None, min_length=1, max_length=200)
+    status: StatusTarefa | None = None
     prioridade: PrioridadeTarefa | None = None
     prazo: date | None = None
  
@@ -39,3 +38,4 @@ class TarefaOut(EsquemaDeSaida):
     criado_em: DataHoraUTC
     atualizado_em: DataHoraUTC
     concluido_em: DataHoraUTC | None
+ 

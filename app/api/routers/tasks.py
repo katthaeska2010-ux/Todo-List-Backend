@@ -38,7 +38,8 @@ def criar_task(dados: TarefaCreate, usuario: UsuarioAtual, servico: Servico) -> 
     summary="Listar as tarefas do usuário logado",
 )
 def listar_tasks(usuario: UsuarioAtual, servico: Servico, response: Response) -> list[TarefaOut]:
-    """Lista as tarefas do usuário logado, das mais recentes para as mais antigas"""
+    """Lista as tarefas do usuário logado, das mais recentes para as mais antigas
+    """
     tarefas = servico.listar(usuario.id)
     response.headers["X-Total-Count"] = str(len(tarefas))
     return tarefas
@@ -51,18 +52,23 @@ def listar_tasks(usuario: UsuarioAtual, servico: Servico, response: Response) ->
 def buscar_task(tarefa_id: int, usuario: UsuarioAtual, servico: Servico) -> TarefaOut:
     """Devolve uma tarefa do usuário logado"""
     return servico.buscar(tarefa_id, usuario.id)
+ 
+ 
+ 
+ 
 @router.patch(
     "/{tarefa_id}",
     response_model=TarefaOut,
     summary="Atualizar tarefa",
-    responses=_RESPOSTAS_DE_UMA_TAREFA,)
- 
- 
- 
+    responses=_RESPOSTAS_DE_UMA_TAREFA,
+)
 def atualizar_task(
     tarefa_id: int, dados: TarefaUpdate, usuario: UsuarioAtual, servico: Servico
 ) -> TarefaOut:
-    """Atualiza parcialmente uma tarefa: só os campos enviados mudam"""
+    """Atualiza parcialmente uma tarefa.
+    Quando o status muda, a data de conclusão é ajustada pela própria tarefa,
+    conforme a RN-03
+    """
     return servico.atualizar(tarefa_id, usuario.id, _montar_alteracoes(dados))
 @router.delete(
     "/{tarefa_id}",
@@ -74,4 +80,3 @@ def remover_task(tarefa_id: int, usuario: UsuarioAtual, servico: Servico) -> Res
     """Remove uma tarefa definitivamente"""
     servico.remover(tarefa_id, usuario.id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
- 
