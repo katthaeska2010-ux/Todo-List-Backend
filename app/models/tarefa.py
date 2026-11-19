@@ -1,5 +1,4 @@
 """Entidade Tarefa: dados e regras de uma tarefa."""
-
 from __future__ import annotations
 from datetime import date, datetime
 from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, String
@@ -34,7 +33,7 @@ class Tarefa(Base):
         prioridade: PrioridadeTarefa | str = PrioridadeTarefa.MEDIA,
         prazo: date | None = None,
     ) -> None:
-        """Cria uma tarefa sempre pendente e sem data de conclusão. """
+        """Cria uma tarefa sempre pendente e sem data de conclusão (RN-02). """
         self.usuario_id = usuario_id
         self.titulo = titulo
         self.prioridade = prioridade
@@ -58,13 +57,13 @@ class Tarefa(Base):
         return self._concluido_em
     # ---------------------------------------------------------------- operações
     def concluir(self, agora: datetime | None = None) -> None:
-        """Conclui a tarefa e registra o momento. """
+        """Conclui a tarefa e registra o momento (RN-03). """
         if self.status is StatusTarefa.CONCLUIDA:
             return
         self._status = StatusTarefa.CONCLUIDA.value
         self._concluido_em = agora or agora_utc()
     def reabrir(self)-> None:
-        """Devolve a tarefa para pendente e apaga a data de conclusão."""
+        """Devolve a tarefa para pendente e apaga a data de conclusão (RN-03)."""
         if self.status is StatusTarefa.PENDENTE:
             return
         self._status = StatusTarefa.PENDENTE.value
@@ -78,6 +77,11 @@ class Tarefa(Base):
             self.concluir(agora)
         else:
             self.reabrir()
+    def esta_atrasada(self, hoje: date | None = None) -> bool:
+        """Informa se o prazo venceu com a tarefa ainda pendente."""
+        if self.prazo is None or self.status is StatusTarefa.CONCLUIDA:
+            return False
+        return self.prazo < (hoje or date.today())
     def pertence_a(self, usuario_id: int) -> bool:
         """Informa se a tarefa é de um determinado usuário."""
         return self.usuario_id == usuario_id
