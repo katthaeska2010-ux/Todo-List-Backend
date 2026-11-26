@@ -2,11 +2,11 @@
 from datetime import date
 from typing import Annotated
 from fastapi import APIRouter, Depends, Query, Response, status
-from app.api.dependencies import UsuarioAtual, obter_tarefa_servico
+from app.api.dependencies import UsuarioAtual, obter_analytics_servico, obter_tarefa_servico
 from app.models.enums import CampoOrdenacao, Ordem, PrioridadeTarefa, StatusTarefa
 from app.repositories import FiltroDeTarefas
-from app.schemas import ResumoOut, TarefaCreate, TarefaOut, TarefaUpdate
-from app.services import AlteracoesDaTarefa, TarefaServico
+from app.schemas import AnalyticsOut, ResumoOut, TarefaCreate, TarefaOut, TarefaUpdate
+from app.services import AlteracoesDaTarefa, AnalyticsServico, TarefaServico
 router = APIRouter(
     prefix="/tasks",
     tags=["Tarefas"],
@@ -34,12 +34,13 @@ def criar_task(dados: TarefaCreate, usuario: UsuarioAtual, servico: Servico) -> 
         prioridade=dados.prioridade,
         prazo=dados.prazo,
     )
- 
 @router.get(
     "",
     response_model=list[TarefaOut],
     summary="Listar as tarefas do usuário logado",
 )
+ 
+ 
 def listar_tasks(
     usuario: UsuarioAtual,
     servico: Servico,
@@ -61,7 +62,7 @@ def listar_tasks(
     limite: Annotated[int, Query(ge=1, le=1000, alias="limit")] = 100,
     deslocamento: Annotated[int, Query(ge=0, alias="offset")] = 0,
 ) -> list[TarefaOut]:
-    """Lista as tarefas do usuário logado, com filtros opcionais. """
+    """Lista as tarefas do usuário logado, com filtros e ordenação opcionais.    """
     filtro = FiltroDeTarefas(
         usuario_id=usuario.id,
         status=status_tarefa,
@@ -80,10 +81,29 @@ def listar_tasks(
     "/resumo",
     response_model=ResumoOut,
     summary="Resumo para o Painel",
-    )
-def resumo_tasks(usuario: UsuarioAtual, servico:Servico) -> ResumoOut:
-    """Total, pendentes, concluídas e atrasadas - os números da página Painel."""
+)
+def resumo_tasks(usuario: UsuarioAtual, servico: Servico) -> ResumoOut:
+    """Total, pendentes, concluídas e atrasadas — os números da página Painel."""
     return servico.resumo(usuario.id)
+@router.get(
+    "/analytics",
+    response_model=AnalyticsOut,
+    summary="Análises para a página Analytics (calculadas com pandas)",
+)
+def analytics_tasks(
+    usuario: UsuarioAtual,
+    servico: Annotated[AnalyticsServico, Depends(obter_analytics_servico)],
+    dias: Annotated[
+        int, Query(ge=1, le=90, description="Tamanho da janela de 'concluídas por dia'")
+    ] = 7,
+) -> AnalyticsOut:
+    """Taxa de conclusão, concluídas por dia e pendentes por prioridade, tempo
+    médio para concluir, conclusões por dia da semana e percentual no prazo.
+       
+    Os quatro primeiros números são os mesmos que a página Anaçytics do
+    front-end calcula hoje no navegador
+    """
+    return servico.calcular(usuario.id, dias=dias)
 @router.get(
     "/{tarefa_id}",
     response_model=TarefaOut,
@@ -102,7 +122,7 @@ def buscar_task(tarefa_id: int, usuario: UsuarioAtual, servico: Servico) -> Tare
 def atualizar_task(
     tarefa_id: int, dados: TarefaUpdate, usuario: UsuarioAtual, servico: Servico
 ) -> TarefaOut:
-    """Atualiza parcialmente uma tarefa."""
+    """Atualiza parcialmente uma tarefa. """
     return servico.atualizar(tarefa_id, usuario.id, _montar_alteracoes(dados))
 @router.delete(
     "/{tarefa_id}",

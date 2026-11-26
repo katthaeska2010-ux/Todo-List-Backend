@@ -38,7 +38,7 @@ app = FastAPI(
         "Para usar as rotas protegidas: faça login em `POST /usuarios/login`, "
         "copie o `acessToken` e cole no botão **Authorize**."
     ),
-    version="0.12.0",
+    version="1.0.0",
     lifespan=ciclo_de_vida,
 )
 app.add_middleware(

@@ -6,12 +6,15 @@ não conhece HTTP: não importa `fastapi`, não devolve códigos de status. O
 mesmo serviço funcionaria em um programa de terminal.
 """
 
+from app.services.analytics import Analytics, AnalyticsServico
 from app.services.tarefa import NAO_INFORMADO, AlteracoesDaTarefa, Resumo, TarefaServico
 from app.services.usuario import Sessao, UsuarioServico
 
 __all__ = [
     "NAO_INFORMADO",
     "AlteracoesDaTarefa",
+    "Analytics",
+    "AnalyticsServico",
     "Resumo",
     "Sessao",
     "TarefaServico",
